@@ -1,0 +1,245 @@
+---
+title: "Case_Study_1"
+author: "Tomas Kejha"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+# Introduction of the company
+
+**Cyclistic** is a bike-share company in Chicago. Their bike-share program features more than 5,800 bicycles and 600 docking stations. The company distinguishes itself from its competitors by offering reclining bikes, hand tricycles, and cargo bikes providing an opportunity for people with disabilities.  
+
+The company offers three pricing plans:  
+
+* single-ride passes  
+* full-day passes  
+* annual membership  
+
+Customers who purchase *single-ride* or *full-day* passes are reffered to as `casual riders` and customers who purchase *annual membership* are reffered to as `Cyclistic members`.  
+
+## Business Task
+
+Annual members are much more profitable and the director of marketing, Lily Moreno, believes that maximizing the number of annual members will be the key to future growth. Moreno also believes that there is a very good chance to convert casual riders into members rather than creating a marketing campaign that targets all-new customers.  
+
+**Goal:**  
+
+* Design marketing strategies aimed at converting casual riders into annual members  
+
+**Answer following questions:**  
+
+* How do annual members and casual riders use Cyclistic bikes differently?  
+* Why would casual riders buy Cyclistic annual memberships?  
+* How can Cyclistic use digital media to influence casual riders to become members?  
+
+## My Task  
+
+As a junior data analyst, you have been asked to analyze data to help with the solution of the the first question: how do annual members and casual riders use Cyclistic bikes differently.
+
+## Data Used for the Analysis
+
+I examined 12 months of data reaching from the 2^nd^ quartile of 2019 to the 1^st^ quartile of 2020.  
+
+**Data source**: [divvy_tripdata](https://divvy-tripdata.s3.amazonaws.com/index.html)  
+
+  
+# Question 1 : How do annual members and casual riders use Cyclistic bikes differently?
+
+## Loading Packages
+
+```{r Packages}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(skimr)
+library(janitor)
+```
+
+## Collecting Data
+
+```{r Collecting data}
+q2_2019 <- read_csv("C:\\Users\\tomas\\OneDrive\\Plocha\\Google Data Analytics Certificate\\CaseStudies\\Track_1_CaseStudy_1\\Divvy_Trips_2019_Q2.csv")
+q3_2019 <- read_csv("C:\\Users\\tomas\\OneDrive\\Plocha\\Google Data Analytics Certificate\\CaseStudies\\Track_1_CaseStudy_1\\Divvy_Trips_2019_Q3.csv")
+q4_2019 <- read_csv("C:\\Users\\tomas\\OneDrive\\Plocha\\Google Data Analytics Certificate\\CaseStudies\\Track_1_CaseStudy_1\\Divvy_Trips_2019_Q4.csv")
+q1_2020 <- read_csv("C:\\Users\\tomas\\OneDrive\\Plocha\\Google Data Analytics Certificate\\CaseStudies\\Track_1_CaseStudy_1\\Divvy_Trips_2020_Q1.csv")
+```
+
+## Cleaning Data
+
+### Renaming columns to be consistent with q1_2020
+
+```{r Renaming columns}
+q4_2019 <- rename(q4_2019,
+                  ride_id = trip_id,
+                  rideable_type = bikeid,
+                  started_at = start_time,
+                  ended_at = end_time,
+                  start_station_name = from_station_name,
+                  start_station_id = from_station_id,
+                  end_station_name = to_station_name,
+                  end_station_id = to_station_id,
+                  member_casual = usertype)
+q3_2019 <- rename(q3_2019,
+                  ride_id = trip_id,
+                  rideable_type = bikeid,
+                  started_at = start_time,
+                  ended_at = end_time,
+                  start_station_name = from_station_name,
+                  start_station_id = from_station_id,
+                  end_station_name = to_station_name,
+                  end_station_id = to_station_id,
+                  member_casual = usertype)
+q2_2019 <- rename(q2_2019,
+                  ride_id = "01 - Rental Details Rental ID",
+                  rideable_type = "01 - Rental Details Bike ID",
+                  started_at = "01 - Rental Details Local Start Time",
+                  ended_at = "01 - Rental Details Local End Time",
+                  start_station_name = "03 - Rental Start Station Name",
+                  start_station_id = "03 - Rental Start Station ID",
+                  end_station_name = "02 - Rental End Station Name",
+                  end_station_id = "02 - Rental End Station ID",
+                  member_casual = "User Type")
+
+
+```
+
+### Converting 'ride_id' and 'rideable_type' in 2019 to 'character' to match 2020
+
+```{r Converting double to character}
+q4_2019 <- mutate(q4_2019, ride_id = as.character(ride_id), rideable_type = as.character(rideable_type))
+q3_2019 <- mutate(q3_2019, ride_id = as.character(ride_id), rideable_type = as.character(rideable_type))
+q2_2019 <- mutate(q2_2019, ride_id = as.character(ride_id), rideable_type = as.character(rideable_type))
+```
+
+### Combining data frames
+
+```{r Combining data frames}
+all_trips <- bind_rows(q2_2019,q3_2019,q4_2019,q1_2020)
+```
+
+### Removing data points that were not used since 2020
+
+```{r Removing data points}
+all_trips <- all_trips %>% 
+  select(-c(start_lat,start_lng, end_lat, end_lng,birthyear, gender,"01 - Rental Details Duration In Seconds Uncapped", "05 - Member Details Member Birthday Year", "Member Gender", "tripduration"))
+```
+
+### Renaming 'member_casual' entries
+
+```{r Renaming member_casual entries}
+all_trips <- all_trips %>% 
+  mutate(member_casual = recode(member_casual, "Subscriber" = "member", "Customer" = "casual"))
+```
+
+### Adding time-related collumns
+
+```{r Adding time-related collumns}
+all_trips$date <- as.Date(all_trips$started_at)
+all_trips$month <- format(as.Date(all_trips$date), "%m")
+all_trips$day <- format(as.Date(all_trips$date), "%d")
+all_trips$year <- format(as.Date(all_trips$date), "%Y")
+all_trips$day_of_week <- format(as.Date(all_trips$date), "%A")
+
+all_trips$ride_length <- difftime(all_trips$ended_at, all_trips$started_at)
+```
+
+### Converting 'ride_length' to numeric
+
+```{r Converting ride_length to numeric}
+all_trips$ride_length <- as.numeric(as.character(all_trips$ride_length))
+```
+
+### Removing irrelevant entries
+
+```{r Removing irrelevant entries}
+all_trips_v2 <- all_trips[!(all_trips$start_station_name == "HQ QR" | all_trips$ride_length < 0),]
+```
+
+## Descriptive Analysis
+
+### Analysing 'ride_length'
+
+```{r Analysing ride_length}
+all_trips_v2 %>% 
+  summarise(average_ride_length = mean(ride_length),
+            median_ride_length = median(ride_length), # the middle number
+            longest_ride_length = max(ride_length),
+            shortest_ride_length = min(ride_length))
+```
+
+### Comparing members and casual users ride length
+
+```{r Comparing members VS casuals ride_length}
+all_trips_v2 %>% 
+  group_by(member_casual) %>% 
+  summarise(average_ride_length = mean(ride_length),
+            median_ride_length = median(ride_length), # the middle number
+            longest_ride_length = max(ride_length),
+            shortest_ride_length = min(ride_length))
+```
+
+
+### Correcting the order of day_of_week
+
+```{r Correcting order day_of_week}
+all_trips_v2$day_of_week <- ordered(all_trips_v2$day_of_week, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+```
+
+
+### Average ride time by each day for members and casual users
+
+```{r members VS casuals based on days}
+all_trips_v2 %>% 
+  group_by(day_of_week, member_casual) %>% 
+  summarise(average_length_of_ride = mean(ride_length), 
+            number_of_rides = n()) %>% 
+  arrange(day_of_week)
+```
+## Visualizating Data
+
+### Length of rides
+
+```{r length of ride}
+all_trips_v2 %>% 
+  group_by(day_of_week, member_casual) %>% 
+  summarise(average_length_of_ride = mean(ride_length), 
+            number_of_rides = n()) %>% 
+  arrange(day_of_week) %>% 
+  ggplot(mapping = aes(x = day_of_week, y = average_length_of_ride, fill = member_casual)) + geom_col(position = "dodge", color = "black") +
+  labs(title = "The Length of Rides in Seconds", subtitle = "The difference in the length of rides between members and casual riders", x = "Day of Week", y = "Average Length of Ride", fill = "Casuals vs Members")
+```
+
+### Number of Rides
+
+```{r number of rides, message=FALSE, warning=FALSE}
+all_trips_v2 %>% 
+  group_by(day_of_week, member_casual) %>% 
+  summarise(average_length_of_ride = mean(ride_length), 
+            number_of_rides = n()) %>% 
+  arrange(day_of_week) %>% 
+  ggplot(mapping = aes(x = day_of_week, y = number_of_rides, fill = member_casual)) + geom_col(color = "black") +
+  facet_wrap(~member_casual) +
+  labs(title = "Number of Rides", subtitle = "The difference in the number of rides between members and casual riders", x = "Day of Week", y = "Average Number of Rides", fill = "Casuals vs Members") +
+  theme(axis.text.x = element_text(angle = 45)) + # changing the angle of x axis labels
+  expand_limits( x = c(0,NA), y = c(0,NA)) +  # changes the outcome 
+  scale_y_continuous(labels = scales::comma)  # of y to readable numbers
+
+```
+
+## Conclusion  
+
+Analyzing and visualizing the data provided us with two main differences between casual riders and members:  
+  
+1) Casual riders use bikes for significantly longer period of time compared to members  
+2) Casual riders do not rent bikes as often as members  
+
+The simple analysis has a potential to lead the marketing team to a data-driven decision. We have found out, that casual riders are much more likely to rent a bike for a longer duration of time which we can use to adjust the membership program so it is more lucrative for them to become members.  
+
+One of the options might be to provide a discount for future renting for every 10km a customer rides. Casual riders do not use the renting service that often but if the discount (or other benefits) was significant enough, they might be willing to become members.
+
